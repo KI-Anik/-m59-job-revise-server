@@ -43,6 +43,22 @@ async function run() {
         res.send(result)
     })
 
+    // applicant related apis 
+    const applicantCollection = client.db('jobPortal').collection('applicants')
+
+    app.get('/job-application',async(req,res)=>{
+        const email = req.query.email;
+        const query= {applicant_email:email}
+        const result = await applicantCollection.find(query).toArray()
+        res.send(result)
+    })
+
+    app.post('/job-applicants', async(req,res)=>{
+        const data = req.body;
+        const result = await applicantCollection.insertOne(data)
+        res.send(result)
+    })
+
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
