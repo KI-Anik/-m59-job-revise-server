@@ -12,65 +12,77 @@ const uri = 'mongodb://localhost:27017/'
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+    }
 });
 
 async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    try {
+        // Connect the client to the server	(optional starting in v4.7)
+        await client.connect();
+        // Send a ping to confirm a successful connection
+        await client.db("admin").command({ ping: 1 });
+        console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
-    // jobs related apis 
-    const jobsCollection=client.db('jobPortal').collection('jobs')
+        // jobs related apis 
+        const jobsCollection = client.db('jobPortal').collection('jobs')
 
-    app.get('/jobs', async(req,res)=>{
-        const cursor = jobsCollection.find()
-        const result = await cursor.toArray()
-        res.send(result)
-    })
+        app.get('/jobs', async (req, res) => {
+            const cursor = jobsCollection.find()
+            const result = await cursor.toArray()
+            res.send(result)
+        })
 
-    app.get('/jobs/:id', async(req,res)=>{
-        const id = req.params.id;
-        const query = {_id: new ObjectId(id)}
-        const result = await jobsCollection.findOne(query)
-        res.send(result)
-    })
+        app.get('/jobs/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await jobsCollection.findOne(query)
+            res.send(result)
+        })
 
-    // applicant related apis 
-    const applicantCollection = client.db('jobPortal').collection('applicants')
+        // applicant related apis 
+        const applicantCollection = client.db('jobPortal').collection('applicants')
 
-    app.get('/job-application',async(req,res)=>{
-        const email = req.query.email;
-        const query= {applicant_email:email}
-        const result = await applicantCollection.find(query).toArray()
-        res.send(result)
-    })
+        app.get('/job-application', async (req, res) => {
+            const email = req.query.email;
+            const query = { applicant_email: email }
+            const result = await applicantCollection.find(query).toArray()
 
-    app.post('/job-applicants', async(req,res)=>{
-        const data = req.body;
-        const result = await applicantCollection.insertOne(data)
-        res.send(result)
-    })
+            // aggregate data (not recommended)
+            for (const application of result) {
+                const id = application.job_id;
+                const query1 = { _id: new ObjectId(id) }
+                const job = await jobsCollection.findOne(query1)
+                if (job) {
+                    application.title = job.title,
+                        application.company = job.company,
+                        application.company_logo = job.company_logo
+                }
+            }
+            res.send(result)
+        })
 
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
-  }
+        app.post('/job-applicants', async (req, res) => {
+            const data = req.body;
+            const result = await applicantCollection.insertOne(data)
+            res.send(result)
+        })
+
+    } finally {
+        // Ensures that the client will close when you finish/error
+        // await client.close();
+    }
 }
 run().catch(console.dir);
 
 
-app.get('/', async(req,res)=>{
+app.get('/', async (req, res) => {
     res.send('job revise server is running')
 })
 
-app.listen(port, ()=>{
+app.listen(port, () => {
     console.log('job server running on port: ', port)
 })
