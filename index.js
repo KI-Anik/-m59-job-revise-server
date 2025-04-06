@@ -2,14 +2,36 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const jwt = require('jsonwebtoken')
-const cookieParser= require('cookie-parser')
+const cookieParser = require('cookie-parser')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
 const port = process.env.PORT || 3000
 
 app.use(express.json())
-app.use(cors())
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}))
 app.use(cookieParser())
+
+// custom middleWare
+const logger = (req,res,next) =>{
+    console.log('inside logger')
+    next()
+}
+
+const verifyToken=(req,res,next) =>{
+    const token= req.cookies.token;
+    if(!token){
+        return res.status(401).send({message: 'UnAuthorizes Access'})
+    }
+    jwt.verify(token, process.env.JWT_SECRET,(err,decoded)=>{
+        if(err){
+            return res.status(401).send({message: 'UnAuthorized Access'})
+        }
+        next()
+    })
+}
 
 // const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.eko35.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -33,15 +55,15 @@ async function run() {
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
         // auth related apis
-        app.post('/jwt', async(req,res)=>{
+        app.post('/jwt', async (req, res) => {
             const user = req.body;
-            const token = jwt.sign(user,process.env.JWT_SECRET, {expiresIn: '1h'})
+            const token = jwt.sign(user, process.env.JWT_SECRET , { expiresIn: '1h' })
             res
-            .cookie('token',token,{
-                httpOnly: true,
-                secure: false
-            })
-            .send({success:true})
+                .cookie('token', token, {
+                    httpOnly: true,
+                    secure: false
+                })
+                .send({ success: true })
         })
 
         // jobs related apis 
@@ -49,9 +71,9 @@ async function run() {
 
         app.get('/jobs', async (req, res) => {
             const email = req.query.email;
-            let query={}
-            if(email){
-                query={hr_email: email}
+            let query = {}
+            if (email) {
+                query = { hr_email: email }
             }
             const cursor = jobsCollection.find(query)
             const result = await cursor.toArray()
@@ -65,7 +87,7 @@ async function run() {
             res.send(result)
         })
 
-        app.post('/jobs',async(req,res)=>{
+        app.post('/jobs', async (req, res) => {
             const newjob = req.body;
             const result = await jobsCollection.insertOne(newjob)
             res.send(result)
@@ -74,9 +96,12 @@ async function run() {
         // applicant related apis 
         const applicantCollection = client.db('jobPortal').collection('applicants')
 
-        app.get('/job-application', async (req, res) => {
+        app.get('/job-application', verifyToken, async (req, res) => {
             const email = req.query.email;
             const query = { applicant_email: email }
+
+            // console.log('cuk ', req.cookies) //cheked for token
+
             const result = await applicantCollection.find(query).toArray()
 
             // aggregate data (not recommended)
