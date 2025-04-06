@@ -1,3 +1,4 @@
+require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -8,6 +9,7 @@ app.use(express.json())
 app.use(cors())
 
 // const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.eko35.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+
 const uri = 'mongodb://localhost:27017/'
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -58,6 +60,7 @@ async function run() {
                 const job = await jobsCollection.findOne(query1)
                 if (job) {
                     application.title = job.title,
+                        application.location = job.location,
                         application.company = job.company,
                         application.company_logo = job.company_logo
                 }
